@@ -1,15 +1,40 @@
 import { useFrame } from '@react-three/fiber'
 import { useGLTF, useFBX, useAnimations } from '@react-three/drei'
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 
-export function Model({ emotion = 'neutral' }) {
+export function Model({ emotion = 'neutral', currentAnimation = 'Idle.fbx', isSpeaking = false }) {
   const { nodes, materials } = useGLTF('/model/68cdacbf7d1f36d5cd0d3a6f.glb')
-  const { animations: idleAnimation } = useFBX('/animation/Idle.fbx')
   
-  idleAnimation[0].name = 'Idle'
+  // Load all animations
+  const idleAnimation = useFBX('/animation/Idle.fbx')
+  const cheeringAnimation = useFBX('/animation/Cheering.fbx')
+  const comfortingAnimation = useFBX('/animation/comforting.fbx')
+  const danceAnimation = useFBX('/animation/dance.fbx')
+  const greetAnimation = useFBX('/animation/greet.fbx')
+  const thumbupAnimation = useFBX('/animation/thumbup.fbx')
+  
+  // Name the animations
+  idleAnimation.animations[0].name = 'Idle'
+  cheeringAnimation.animations[0].name = 'Cheering'
+  comfortingAnimation.animations[0].name = 'comforting'
+  danceAnimation.animations[0].name = 'dance'
+  greetAnimation.animations[0].name = 'greet'
+  thumbupAnimation.animations[0].name = 'thumbup'
   
   const group = useRef()
-  const { actions } = useAnimations([idleAnimation[0]], group)
+  const [previousAnimation, setPreviousAnimation] = useState('Idle')
+  
+  // Combine all animations
+  const allAnimations = [
+    idleAnimation.animations[0],
+    cheeringAnimation.animations[0],
+    comfortingAnimation.animations[0],
+    danceAnimation.animations[0],
+    greetAnimation.animations[0],
+    thumbupAnimation.animations[0]
+  ]
+  
+  const { actions } = useAnimations(allAnimations, group)
   
   // Define emotion presets using available morph targets
   const emotions = {
@@ -107,15 +132,41 @@ export function Model({ emotion = 'neutral' }) {
     }
   }
   
-  // Start idle animation
+  // Handle animation switching
+  useEffect(() => {
+    if (!actions) return
+    
+    // Get animation name without .fbx extension
+    const animationName = currentAnimation.replace('.fbx', '')
+    
+    // Stop previous animation
+    if (previousAnimation && actions[previousAnimation]) {
+      actions[previousAnimation].fadeOut(0.5)
+    }
+    
+    // Start new animation
+    if (actions[animationName]) {
+      actions[animationName].reset().fadeIn(0.5).play()
+      setPreviousAnimation(animationName)
+    } else {
+      // Fallback to idle if animation not found
+      if (actions.Idle) {
+        actions.Idle.reset().fadeIn(0.5).play()
+        setPreviousAnimation('Idle')
+      }
+    }
+  }, [currentAnimation, actions, previousAnimation])
+
+  // Start idle animation initially
   useEffect(() => {
     if (actions.Idle) {
       actions.Idle.reset().play()
+      setPreviousAnimation('Idle')
     }
   }, [actions])
 
   // Apply emotion to morph targets
-  useFrame(() => {
+  useFrame((state) => {
     const headNode = nodes.Wolf3D_Head
     
     if (headNode && headNode.morphTargetDictionary && headNode.morphTargetInfluences) {
@@ -131,6 +182,32 @@ export function Model({ emotion = 'neutral' }) {
           headNode.morphTargetInfluences[targetIndex] = value
         }
       })
+      
+      // Add mouth movement when speaking
+      if (isSpeaking) {
+        const time = state.clock.elapsedTime
+        
+        // Create random mouth movements for speech
+        const mouthOpenAmount = (Math.sin(time * 8) + Math.sin(time * 12) + Math.sin(time * 16)) * 0.1 + 0.2
+        const mouthWideAmount = Math.sin(time * 6) * 0.05
+        
+        // Apply mouth movements
+        const jawOpenIndex = headNode.morphTargetDictionary['jawOpen']
+        const mouthFunnelIndex = headNode.morphTargetDictionary['mouthFunnel']
+        const mouthPuckerIndex = headNode.morphTargetDictionary['mouthPucker']
+        
+        if (jawOpenIndex !== undefined) {
+          headNode.morphTargetInfluences[jawOpenIndex] = Math.max(0, Math.min(1, mouthOpenAmount))
+        }
+        
+        if (mouthFunnelIndex !== undefined) {
+          headNode.morphTargetInfluences[mouthFunnelIndex] = Math.max(0, Math.min(1, mouthWideAmount))
+        }
+        
+        if (mouthPuckerIndex !== undefined) {
+          headNode.morphTargetInfluences[mouthPuckerIndex] = Math.max(0, Math.min(1, -mouthWideAmount))
+        }
+      }
     }
   })
 

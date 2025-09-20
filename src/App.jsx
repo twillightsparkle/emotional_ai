@@ -4,22 +4,27 @@ import { Suspense, useState } from 'react'
 import { Model } from './components/Model'
 import { Background } from './components/Background'
 import { FaceTracking } from './components/FaceTracking'
+import SmartSpeechHandler from './components/SmartSpeechHandler'
+import AIResponseDisplay from './components/AIResponseDisplay'
 import './App.css'
 
 function App() {
-  const [selectedEmotion, setSelectedEmotion] = useState('neutral')
   const [faceTrackingActive, setFaceTrackingActive] = useState(false)
   const [detectedEmotion, setDetectedEmotion] = useState('neutral')
-
-  const emotions = [
-    'neutral', 'happy', 'sad', 'surprised', 'angry', 'disgusted', 
-    'excited', 'thinking', 'confused', 'smirk', 'kiss', 'wink', 'shock'
-  ]
+  const [longestEmotion, setLongestEmotion] = useState({ emotion: 'neutral', duration: 0 })
+  const [aiResponses, setAiResponses] = useState([])
+  const [currentAnimation, setCurrentAnimation] = useState('Idle.fbx')
+  const [aiEmotion, setAiEmotion] = useState('neutral')
+  const [isSpeaking, setIsSpeaking] = useState(false)
 
   // Handle emotion detection from face tracking
   const handleEmotionDetected = (emotion) => {
     setDetectedEmotion(emotion)
-    setSelectedEmotion(emotion)
+  }
+
+  // Handle longest emotion update from face tracking
+  const handleLongestEmotionUpdate = (longestEmotionData) => {
+    setLongestEmotion(longestEmotionData)
   }
 
   // Toggle face tracking
@@ -27,8 +32,44 @@ function App() {
     setFaceTrackingActive(!faceTrackingActive)
   }
 
+  // Handle AI responses from speech
+  const handleGeminiResponse = (responseData) => {
+    setAiResponses(prev => [...prev, responseData])
+    
+    // Update AI emotion if provided
+    if (responseData.aiEmotion) {
+      setAiEmotion(responseData.aiEmotion)
+    }
+  }
+
+  // Handle animation changes from AI responses
+  const handleAnimationChange = (animation) => {
+    setCurrentAnimation(animation)
+    
+    // Return to idle after animation duration (approximate)
+    setTimeout(() => {
+      setCurrentAnimation('Idle.fbx')
+    }, 5000) // 5 seconds, adjust based on animation length
+  }
+
+  // Reset emotions to neutral after conversation
+  const handleEmotionReset = () => {
+    setAiEmotion('neutral')
+    setLongestEmotion({ emotion: 'neutral', duration: 0 })
+  }
+
+  // Clear AI responses
+  const clearAiResponses = () => {
+    setAiResponses([])
+  }
+
+  // Make clear function available globally for the display component
+  window.clearAIResponses = clearAiResponses
+
   // Current emotion based on mode
-  const currentEmotion = faceTrackingActive ? detectedEmotion : selectedEmotion
+  const currentEmotion = faceTrackingActive 
+      ? detectedEmotion 
+      : 'neutral' // Default to neutral when no tracking is active
 
   return (
     <div className="app">
@@ -42,7 +83,10 @@ function App() {
         background: 'rgba(0, 0, 0, 0.8)',
         padding: '10px 20px',
         borderRadius: '25px',
-        color: 'white'
+        color: 'white',
+        display: 'flex',
+        gap: '10px',
+        alignItems: 'center'
       }}>
         <button
           onClick={toggleFaceTracking}
@@ -64,57 +108,23 @@ function App() {
       <FaceTracking 
         isActive={faceTrackingActive}
         onEmotionDetected={handleEmotionDetected}
+        onLongestEmotionUpdate={handleLongestEmotionUpdate}
       />
 
-      {/* Manual Emotion Control Panel */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        zIndex: 1000,
-        background: 'rgba(0, 0, 0, 0.8)',
-        padding: '15px',
-        borderRadius: '10px',
-        color: 'white',
-        maxHeight: '80vh',
-        overflowY: 'auto',
-        opacity: faceTrackingActive ? 0.6 : 1
-      }}>
-        <h3 style={{ margin: '0 0 15px 0', fontSize: '16px' }}>
-          {faceTrackingActive ? 'Manual Override' : 'Avatar Emotions'}
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          {emotions.map(emotion => (
-            <button
-              key={emotion}
-              onClick={() => {
-                setSelectedEmotion(emotion)
-                if (faceTrackingActive) {
-                  setFaceTrackingActive(false) // Switch to manual mode
-                }
-              }}
-              style={{
-                padding: '8px 12px',
-                background: currentEmotion === emotion ? '#4CAF50' : '#333',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                textTransform: 'capitalize',
-                fontSize: '12px'
-              }}
-            >
-              {emotion}
-            </button>
-          ))}
-        </div>
-        <div style={{ marginTop: '15px', fontSize: '12px', opacity: 0.8 }}>
-          Current: <strong>{currentEmotion}</strong>
-          {faceTrackingActive && (
-            <div style={{ color: '#4CAF50' }}>🔴 Face Tracking Active</div>
-          )}
-        </div>
-      </div>
+      {/* Smart Speech Handler - AI Friend */}
+        <SmartSpeechHandler 
+          currentEmotion={currentEmotion}
+          onGeminiResponse={handleGeminiResponse}
+          onEmotionChange={setAiEmotion}
+          onAnimationChange={handleAnimationChange}
+          onEmotionReset={handleEmotionReset}
+        />
+
+      {/* AI Response Display */}
+      <AIResponseDisplay 
+        responses={aiResponses} 
+        onSpeakingStateChange={setIsSpeaking}
+      />
 
       <Canvas 
         camera={{ position: [0, 0, 5], fov: 75 }}
@@ -134,17 +144,21 @@ function App() {
         
         {/* 3D Model with loading fallback */}
         <Suspense fallback={null}>
-          <Model emotion={currentEmotion} />
+          <Model 
+            emotion={aiEmotion} 
+            currentAnimation={currentAnimation} 
+            isSpeaking={isSpeaking}
+          />
         </Suspense>
         
-        {/* Camera Controls */}
+        {/* Camera Controls 
         <OrbitControls 
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
           maxDistance={20}
           minDistance={2}
-        />
+        />*/}
         
         {/* Environment for better lighting */}
         <Environment preset="studio" />

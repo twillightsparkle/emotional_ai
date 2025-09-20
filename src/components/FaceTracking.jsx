@@ -1,13 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
 import * as faceapi from 'face-api.js'
 
-export function FaceTracking({ isActive, onEmotionDetected }) {
+export function FaceTracking({ isActive, onEmotionDetected, onLongestEmotionUpdate }) {
   const [detectedEmotion, setDetectedEmotion] = useState('neutral')
   const [isModelLoaded, setIsModelLoaded] = useState(false)
   const videoRef = useRef()
   const canvasRef = useRef()
   const detectionIntervalRef = useRef()
   const streamRef = useRef() // Store the stream separately for cleanup
+
+  // Emotion duration tracking
+  const [currentEmotion, setCurrentEmotion] = useState('neutral')
+  const [emotionStartTime, setEmotionStartTime] = useState(Date.now())
+  const [emotionTotalDurations, setEmotionTotalDurations] = useState({})
+  const [longestEmotion, setLongestEmotion] = useState({ emotion: 'neutral', duration: 0 })
+  const lastEmotionRef = useRef('neutral')
+  const startTimeRef = useRef(Date.now())
 
   // Map Face-API emotions to avatar emotions
   const mapFaceApiToAvatar = (expressions) => {
@@ -28,6 +36,60 @@ export function FaceTracking({ isActive, onEmotionDetected }) {
     }
     
     return emotionMap[topEmotion[0]] || 'neutral'
+  }
+
+  // Track emotion duration and update totals
+  const trackEmotionDuration = (newEmotion) => {
+    const now = Date.now()
+    const currentTime = startTimeRef.current
+    const lastEmotion = lastEmotionRef.current
+
+    // Calculate duration of the previous emotion
+    if (lastEmotion && currentTime) {
+      const duration = now - currentTime
+
+      // Update total durations
+      setEmotionTotalDurations(prev => ({
+        ...prev,
+        [lastEmotion]: (prev[lastEmotion] || 0) + duration
+      }))
+    }
+
+    // Update refs for next calculation
+    lastEmotionRef.current = newEmotion
+    startTimeRef.current = now
+    setCurrentEmotion(newEmotion)
+    setEmotionStartTime(now)
+  }
+
+  // Calculate which emotion has lasted the longest total time
+  const calculateLongestEmotion = (durations) => {
+    if (Object.keys(durations).length === 0) {
+      return { emotion: 'neutral', duration: 0 }
+    }
+
+    const longest = Object.entries(durations).reduce((max, [emotion, duration]) => {
+      return duration > max.duration ? { emotion, duration } : max
+    }, { emotion: 'neutral', duration: 0 })
+
+    return longest
+  }
+
+  // Format duration for display
+  const formatDuration = (milliseconds) => {
+    const totalSeconds = Math.floor(milliseconds / 1000)
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`
+    }
+    return `${seconds}s`
+  }
+
+  // Get current session duration
+  const getCurrentSessionDuration = () => {
+    return Date.now() - emotionStartTime
   }
 
   // Start video stream
@@ -111,6 +173,12 @@ export function FaceTracking({ isActive, onEmotionDetected }) {
         if (detections.length > 0) {
           const emotion = mapFaceApiToAvatar(detections[0].expressions)
           setDetectedEmotion(emotion)
+          
+          // Track emotion duration only if emotion changed
+          if (emotion !== lastEmotionRef.current) {
+            trackEmotionDuration(emotion)
+          }
+          
           onEmotionDetected(emotion)
         }
       }
@@ -142,12 +210,59 @@ export function FaceTracking({ isActive, onEmotionDetected }) {
     } else if (!isActive) {
       stopDetectionLoop()
       stopVideo()
+      
+      // Reset all emotion tracking data when face tracking is turned off
+      setEmotionTotalDurations({})
+      setLongestEmotion({ emotion: 'neutral', duration: 0 })
+      setCurrentEmotion('neutral')
+      setEmotionStartTime(Date.now())
+      lastEmotionRef.current = 'neutral'
+      startTimeRef.current = Date.now()
     }
 
     return () => {
       stopDetectionLoop()
     }
   }, [isActive, isModelLoaded])
+
+  // Update longest emotion when total durations change
+  useEffect(() => {
+    const longest = calculateLongestEmotion(emotionTotalDurations)
+    setLongestEmotion(longest)
+    
+    // Notify parent component about longest emotion update
+    if (onLongestEmotionUpdate) {
+      onLongestEmotionUpdate(longest)
+    }
+  }, [emotionTotalDurations])
+
+  // Update display every second for current session duration
+  useEffect(() => {
+    let intervalId
+    if (isActive) {
+      intervalId = setInterval(() => {
+        // Force re-render to update current session duration display
+        setEmotionStartTime(prev => prev) // Trigger re-render without changing the value
+      }, 1000)
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+    }
+  }, [isActive])
+
+  // Cleanup emotion tracking when component unmounts
+  useEffect(() => {
+    return () => {
+      // Record final emotion duration before unmounting
+      if (lastEmotionRef.current && startTimeRef.current) {
+        const finalDuration = Date.now() - startTimeRef.current
+        setEmotionTotalDurations(prev => ({
+          ...prev,
+          [lastEmotionRef.current]: (prev[lastEmotionRef.current] || 0) + finalDuration
+        }))
+      }
+    }
+  }, [])
 
   if (!isActive) return null
 
@@ -187,7 +302,9 @@ export function FaceTracking({ isActive, onEmotionDetected }) {
       <div style={{ fontSize: '12px', marginTop: '8px' }}>
         Status: {isModelLoaded ? 'Active' : 'Loading models...'}
         <br />
-        Detected: <strong>{detectedEmotion}</strong>
+        Current: <strong>{detectedEmotion}</strong> ({formatDuration(getCurrentSessionDuration())})
+        <br />
+        Longest: <strong>{longestEmotion.emotion}</strong> ({formatDuration(longestEmotion.duration)})
       </div>
     </div>
   )
