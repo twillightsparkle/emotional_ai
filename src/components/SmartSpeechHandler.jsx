@@ -79,7 +79,8 @@ const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange,
     recognition.onend = () => {
       // Don't auto-restart - user must manually start recording again
       setIsRecording(false);
-      setStatus('Ready to talk to your AI friend');
+      setTranscription(''); // Clear transcription when recognition ends
+      setStatus('thinking.......');
     };
     
     return recognition;
@@ -181,6 +182,11 @@ const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange,
     setIsProcessing(false);
     clearTimeout(silenceTimeoutRef.current);
     
+    // Process any accumulated transcription before clearing
+    if (transcription && transcription.trim() !== '') {
+      processTranscription(transcription.trim());
+    }
+    
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
@@ -191,7 +197,8 @@ const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange,
     }
     
     setIsRecording(false);
-    setStatus('Ready to talk to your AI friend');
+    setTranscription(''); // Clear accumulated transcription after processing
+    setStatus('thinking.......');
   };
 
   // Cleanup on unmount
