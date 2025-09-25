@@ -36,24 +36,18 @@ class GeminiService {
             const response = await this.ai.models.generateContent({
                 model: "gemini-2.5-flash",
                 contents: question,
+                // generationConfig: {
+                //     maxOutputTokens: 2048, // Maximum tokens for gemini-2.5-flash
+                //     temperature: 0.7,
+                //     topP: 0.8,
+                //     topK: 40
+                // }
             });
-            
             return response.text;
         } catch (error) {
             console.error('Error calling Gemini API:', error);
             throw error;
         }
-    }
-
-    /**
-     * Send a question with context about the current emotion
-     * @param {string} question - The question to ask
-     * @param {string} currentEmotion - The current detected emotion
-     * @returns {Promise<string>} - The response from Gemini with emotion context
-     */
-    async askQuestionWithEmotion(question, currentEmotion) {
-        const contextualQuestion = `Current user emotion: ${currentEmotion}. Question: ${question}`;
-        return this.askQuestion(contextualQuestion);
     }
 
     /**
@@ -77,6 +71,10 @@ Please respond as a good friend would - be empathetic, understanding, and suppor
 - If they seem confused, be helpful and clarifying
 - If they seem surprised, be engaging
 - Always be genuine, warm, and supportive like a real friend would be
+
+Additional Rule:  
+If the user asks you to tell a story, joke, or share something, 
+Do not stop at introductions. 
 
 IMPORTANT: Respond ONLY with a valid JSON object in this exact format:
 {
