@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { geminiService } from '../services/GeminiService';
 
-const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange, onAnimationChange, onEmotionReset }) => {
+const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange, onAnimationChange, onEmotionReset, autoRecordingEnabled, isSpeaking }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [status, setStatus] = useState('Ready to talk to your AI friend');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [wasAutoStarted, setWasAutoStarted] = useState(false);
   
   const recognitionRef = useRef(null);
   const streamRef = useRef(null);
@@ -175,6 +176,7 @@ const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange,
     } catch (error) {
       console.error('Error accessing microphone:', error);
       setStatus('❌ Error accessing microphone');
+      setWasAutoStarted(false);
     }
   };
 
@@ -198,8 +200,29 @@ const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange,
     
     setIsRecording(false);
     setTranscription(''); // Clear accumulated transcription after processing
-    setStatus('thinking.......');
+    setWasAutoStarted(false);
+    setStatus('Ready to talk to your AI friend');
   };
+
+  // Handle automatic recording based on face detection and speaking status
+  useEffect(() => {
+    if (autoRecordingEnabled && !isSpeaking && !isRecording && !isProcessing) {
+      // Automatically start recording when face is detected and AI is not speaking
+      setTimeout(() => {
+        if (autoRecordingEnabled && !isSpeaking && !isRecording && !isProcessing) {
+          setWasAutoStarted(true);
+          startRecording();
+        }
+      }, 500); // Small delay to ensure smooth transition
+    } else if (!autoRecordingEnabled && isRecording && wasAutoStarted) {
+      // Stop recording when face is no longer detected (but only if it was auto-started)
+      stopRecording();
+      setWasAutoStarted(false);
+    } else if (isSpeaking && isRecording) {
+      // Stop recording when AI starts speaking
+      stopRecording();
+    }
+  }, [autoRecordingEnabled, isSpeaking, isRecording, isProcessing, wasAutoStarted]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -287,7 +310,14 @@ const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange,
         color: 'rgba(255,255,255,0.6)',
         marginTop: '10px'
       }}>
-        Speak naturally - I'll respond based on what you say and how you feel!
+        {autoRecordingEnabled ? (
+          <>
+            🤖 Auto-recording enabled - I'll listen when you show your face!
+            {wasAutoStarted && <div style={{ color: '#4CAF50', marginTop: '2px' }}>✨ Auto-started</div>}
+          </>
+        ) : (
+          'Speak naturally - I\'ll respond based on what you say and how you feel!'
+        )}
       </div>
     </div>
   );

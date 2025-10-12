@@ -11,25 +11,42 @@ import './App.css'
 function App() {
   const [faceTrackingActive, setFaceTrackingActive] = useState(false)
   const [detectedEmotion, setDetectedEmotion] = useState('neutral')
-  const [longestEmotion, setLongestEmotion] = useState({ emotion: 'neutral', duration: 0 })
   const [aiResponses, setAiResponses] = useState([])
   const [currentAnimation, setCurrentAnimation] = useState('Idle.fbx')
   const [aiEmotion, setAiEmotion] = useState('neutral')
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [faceDetected, setFaceDetected] = useState(false)
+  const [autoRecordingEnabled, setAutoRecordingEnabled] = useState(false)
 
   // Handle emotion detection from face tracking
   const handleEmotionDetected = (emotion) => {
     setDetectedEmotion(emotion)
   }
 
-  // Handle longest emotion update from face tracking
-  const handleLongestEmotionUpdate = (longestEmotionData) => {
-    setLongestEmotion(longestEmotionData)
+
+
+  // Handle face detection status
+  const handleFaceDetected = (detected) => {
+    setFaceDetected(detected)
+    
+    // Enable automatic recording when face is detected and face tracking is active
+    if (detected && faceTrackingActive) {
+      setAutoRecordingEnabled(true)
+    } else {
+      setAutoRecordingEnabled(false)
+    }
   }
 
   // Toggle face tracking
   const toggleFaceTracking = () => {
-    setFaceTrackingActive(!faceTrackingActive)
+    const newState = !faceTrackingActive
+    setFaceTrackingActive(newState)
+    
+    // Enable/disable automatic recording based on face tracking state
+    if (!newState) {
+      setAutoRecordingEnabled(false)
+      setFaceDetected(false)
+    }
   }
 
   // Handle AI responses from speech
@@ -55,7 +72,6 @@ function App() {
   // Reset emotions to neutral after conversation
   const handleEmotionReset = () => {
     setAiEmotion('neutral')
-    setLongestEmotion({ emotion: 'neutral', duration: 0 })
   }
 
   // Clear AI responses
@@ -108,7 +124,7 @@ function App() {
       <FaceTracking 
         isActive={faceTrackingActive}
         onEmotionDetected={handleEmotionDetected}
-        onLongestEmotionUpdate={handleLongestEmotionUpdate}
+        onFaceDetected={handleFaceDetected}
       />
 
       {/* Smart Speech Handler - AI Friend */}
@@ -118,6 +134,8 @@ function App() {
           onEmotionChange={setAiEmotion}
           onAnimationChange={handleAnimationChange}
           onEmotionReset={handleEmotionReset}
+          autoRecordingEnabled={autoRecordingEnabled}
+          isSpeaking={isSpeaking}
         />
 
       {/* AI Response Display */}
@@ -158,8 +176,9 @@ function App() {
           enableRotate={true}
           maxDistance={20}
           minDistance={2}
-        />*/}
-        
+        />
+        */}
+
         {/* Environment for better lighting */}
         <Environment preset="studio" />
       </Canvas>

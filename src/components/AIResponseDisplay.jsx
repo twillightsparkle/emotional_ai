@@ -16,17 +16,18 @@ const AIResponseDisplay = ({ responses = [], onSpeakingStateChange }) => {
     
     const utterance = new SpeechSynthesisUtterance(text);
     
-    // Configure voice based on emotion
+    // Configure voice - simple male voice selection
     const voices = window.speechSynthesis.getVoices();
-    const femaleVoice = voices.find(voice => 
-      voice.name.toLowerCase().includes('female') || 
-      voice.name.toLowerCase().includes('woman') ||
-      voice.name.toLowerCase().includes('zira') ||
-      voice.name.toLowerCase().includes('samantha')
+    const maleVoice = voices.find(voice => 
+      voice.name.toLowerCase().includes('male') || 
+      voice.name.toLowerCase().includes('man') ||
+      voice.name.toLowerCase().includes('david') ||
+      voice.name.toLowerCase().includes('mark') ||
+      voice.name.toLowerCase().includes('alex')
     );
     
-    if (femaleVoice) {
-      utterance.voice = femaleVoice;
+    if (maleVoice) {
+      utterance.voice = maleVoice;
     }
     
     // Adjust speech parameters based on emotion
@@ -34,7 +35,7 @@ const AIResponseDisplay = ({ responses = [], onSpeakingStateChange }) => {
       case 'happy':
       case 'excited':
         utterance.rate = 1.1;
-        utterance.pitch = 2.0;
+        utterance.pitch = 1.2;
         utterance.volume = 0.9;
         break;
       case 'sad':
@@ -327,7 +328,7 @@ const AIResponseDisplay = ({ responses = [], onSpeakingStateChange }) => {
                   display: 'flex',
                   justifyContent: 'space-between'
                 }}>
-                  <span>You said (feeling {response.emotion}):</span>
+                  <span>You said:</span>
                   <span>{formatTime(response.timestamp)}</span>
                 </div>
                 <div style={{ fontSize: '13px', fontStyle: 'italic' }}>

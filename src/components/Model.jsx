@@ -3,7 +3,7 @@ import { useGLTF, useFBX, useAnimations } from '@react-three/drei'
 import { useRef, useEffect, useState } from 'react'
 
 export function Model({ emotion = 'neutral', currentAnimation = 'Idle.fbx', isSpeaking = false }) {
-  const { nodes, materials } = useGLTF('/model/68cdacbf7d1f36d5cd0d3a6f.glb')
+  const { nodes, materials } = useGLTF('/model/aitoguy.glb')
   
   // Load all animations
   const idleAnimation = useFBX('/animation/Idle.fbx')
@@ -212,7 +212,7 @@ export function Model({ emotion = 'neutral', currentAnimation = 'Idle.fbx', isSp
   })
 
   return (
-    <group ref={group} scale={[6, 6, 6]} position={[0, -8, 0]} dispose={null}>
+    <group ref={group} scale={[6, 6, 6]} position={[0, -9, 0]} dispose={null}>
       <primitive object={nodes.Hips || nodes.Root || Object.values(nodes)[0]} />
       {/* Render all skinned meshes */}
       {Object.keys(nodes).map(key => {
