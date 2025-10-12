@@ -7,6 +7,7 @@ const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange,
   const [status, setStatus] = useState('Ready to talk to your AI friend');
   const [isProcessing, setIsProcessing] = useState(false);
   const [wasAutoStarted, setWasAutoStarted] = useState(false);
+  const [prevIsSpeaking, setPrevIsSpeaking] = useState(false);
   
   const recognitionRef = useRef(null);
   const streamRef = useRef(null);
@@ -146,14 +147,6 @@ const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange,
     } finally {
       setIsProcessing(false);
       
-      // Reset emotions to neutral after conversation with a delay
-      // This allows the animation and AI emotion to be displayed briefly
-      setTimeout(() => {
-        if (onEmotionReset) {
-          onEmotionReset();
-        }
-      }, 9000); // 9 second delay to show the AI emotion/animation
-      
       // Don't auto-restart recording - user must manually start again
     }
   };
@@ -203,6 +196,23 @@ const SmartSpeechHandler = ({ currentEmotion, onGeminiResponse, onEmotionChange,
     setWasAutoStarted(false);
     setStatus('Ready to talk to your AI friend');
   };
+
+  // Reset emotion when avatar finishes speaking
+  useEffect(() => {
+    // If avatar was speaking but now stopped, reset emotion after a brief delay
+    if (prevIsSpeaking && !isSpeaking) {
+      const resetTimeout = setTimeout(() => {
+        if (onEmotionReset) {
+          onEmotionReset();
+        }
+      }, 1000); // Small delay to let the final emotion show briefly
+      
+      return () => clearTimeout(resetTimeout);
+    }
+    
+    // Update previous speaking state
+    setPrevIsSpeaking(isSpeaking);
+  }, [isSpeaking, prevIsSpeaking, onEmotionReset]);
 
   // Handle automatic recording based on face detection and speaking status
   useEffect(() => {

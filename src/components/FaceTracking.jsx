@@ -41,10 +41,6 @@ export function FaceTracking({ isActive, onEmotionDetected, onFaceDetected }) {
     }
   }
 
-
-
-
-
   // Start video stream
   const startVideo = () => {
     navigator.mediaDevices.getUserMedia({ video: true })

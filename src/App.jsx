@@ -23,8 +23,6 @@ function App() {
     setDetectedEmotion(emotion)
   }
 
-
-
   // Handle face detection status
   const handleFaceDetected = (detected) => {
     setFaceDetected(detected)
