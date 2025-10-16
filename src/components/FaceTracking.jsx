@@ -205,18 +205,13 @@ export function FaceTracking({ isActive, onEmotionDetected, onFaceDetected }) {
   }, [isActive, isModelLoaded])
 
 
-
-
-
-
-
   if (!isActive) return null
 
   return (
     <div style={{
       position: 'absolute',
       top: '20px',
-      right: '20px',
+      left: '20px',
       zIndex: 1000,
       background: 'rgba(0, 0, 0, 0.8)',
       padding: '15px',
